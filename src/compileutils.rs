@@ -1,5 +1,6 @@
 use crate::procutils::*;
 use crate::types::*;
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -205,27 +206,36 @@ pub fn find_sources(path: &Path) -> Vec<Box<Path>> {
 
     sources
 }
+/// ! Recursively searches for files ending in .h/.hpp/.h++
+pub fn find_headers(path: &Path) -> Vec<Box<Path>> {
+    let mut sources: Vec<Box<Path>> = Vec::new();
 
-/// ! Recursively searches for files ending in .h/.hpp and generate
-pub fn generate_include_paths(root: &str, suffix: &str) -> Vec<String> {
-    let mut ret = Vec::new();
-    let cwd = root.to_string();
+    for entry in WalkDir::new(path) {
+        let path = entry.unwrap();
+        let path = path.path();
 
-    for entry in WalkDir::new(&cwd) {
-        let entry = entry.unwrap();
-        let absolute = entry.path().to_str().unwrap().to_string();
+        if path.ends_with(".h") || path.ends_with(".hpp") || path.ends_with(".h++") {
+            sources.push(path.to_owned().into_boxed_path());
+        }
+    }
 
-        if absolute.ends_with(suffix) {
-            let via_root = absolute.replace(&cwd, "");
-            let via_root = std::path::Path::new(&via_root);
-            let mut dir = via_root.parent();
-            loop {
-                if dir == None {
-                    break;
-                }
-                ret.push(dir.clone().unwrap().to_str().unwrap().to_string());
-                dir = dir.unwrap().parent();
-            }
+    sources
+}
+
+/// ! Recursively searches for files ending in .h/.hpp/.gpp and generate
+/// ! Example:
+/// ! For /User/test/game/src/engine/api/header.h
+/// ! - /User/test/game/src
+/// ! - /User/test/game/src/engine
+/// ! - /User/tes/game/src/engine/api
+pub fn generate_include_paths(root: &Path, headers: Vec<Box<Path>>) -> HashSet<Box<Path>> {
+    let mut ret = HashSet::new();
+
+    for header in headers {
+        let mut iter = header.parent().unwrap();
+        while iter != root {
+            ret.insert(iter.to_owned().into_boxed_path());
+            iter = iter.parent().unwrap();
         }
     }
 

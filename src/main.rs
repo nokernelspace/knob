@@ -14,9 +14,6 @@ struct Args {
     #[arg(short, long, default_value = ".")]
     root: String,
 
-    #[arg(short, long, default_value = "")]
-    target: String,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -25,7 +22,7 @@ struct Args {
 enum Commands {
     INIT,
     CLEAN,
-    BUILD,
+    BUILD { target_query: String },
     OPTS,
     RELEASE,
     INC,
@@ -53,15 +50,26 @@ fn main() {
                 todo!()
             }
             Commands::CLEAN => {}
-            Commands::BUILD => {
+            Commands::BUILD { target_query } => {
                 let (dirs, shared, targets) = parse_toml(&*toml);
 
                 let targets = targets.iter().fold(Vec::new(), |mut a, x| {
-                    if x.name.contains(&args.target) {
+                    if x.name.contains(&target_query) {
                         a.push(x)
                     }
                     a
                 });
+                if targets.len() < 1 {
+                    panic!("Could not find a build target with \"{}\"", target_query);
+                } else if targets.len() > 2 {
+                    println!("Found Multiple Targets with \"{}\"", target_query);
+                    for t in targets {
+                        println!("{}", t.name);
+                    }
+                    panic!();
+                }
+                let target = *targets.get(0).unwrap();
+
                 let mut loose_objs = Vec::new();
                 // Build Shared Dependencies
                 for dep in shared {
@@ -97,6 +105,14 @@ fn main() {
                 }
 
                 // Compile Project Source
+                let headers = find_headers(&dirs.sources);
+                let sources = find_sources(&dirs.sources);
+                let includes = generate_include_paths(&*cwd(), headers);
+                let includes_args: Vec<String> = includes
+                    .iter()
+                    .map(|i| "-I".to_string() + i.to_str().unwrap())
+                    .collect();
+
                 // Compile Target Entrypoint
                 // Link Entrypoint with
                 //  - Project Sources      : generate_linker_args("./build")
@@ -106,12 +122,6 @@ fn main() {
             Commands::SHARED => {
                 let (dirs, shared, targets) = parse_toml(&*toml);
 
-                let targets = targets.iter().fold(Vec::new(), |mut a, x| {
-                    if x.name.contains(&args.target) {
-                        a.push(x)
-                    }
-                    a
-                });
                 let mut loose_objs = Vec::new();
                 // Build Shared Dependencies
                 for dep in shared {

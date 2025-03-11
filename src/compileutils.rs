@@ -60,7 +60,7 @@ pub fn parse_dependencies(file: &Path) -> Vec<BuildShared> {
                     Vec::new()
                 }
             };
-            let mut headers = file.to_path_buf();
+            let mut headers = entry.clone().to_path_buf();
             headers.push(dep.get("headers").unwrap().as_str().unwrap());
 
             ret.push(BuildShared {
@@ -86,11 +86,19 @@ pub fn parse_toml(file: &Path) -> (BuildDirs, Vec<BuildShared>, Vec<BuildTarget>
     let toml = fs::read_to_string(file).unwrap();
     let toml = toml.parse::<Table>().unwrap();
 
-    let build = canonicalize(toml.get("output").unwrap().as_str().unwrap());
+    let output = toml.get("output").unwrap().as_str().unwrap();
+    let dependencies = toml.get("dependencies").unwrap().as_str().unwrap();
+    let sources = toml.get("sources").unwrap().as_str().unwrap();
+
+    mkdir(Path::new(output));
+    mkdir(Path::new(dependencies));
+    mkdir(Path::new(sources));
+
+    let build = canonicalize(output);
     println!("Output Directory: {:?}", build);
-    let deps = canonicalize(toml.get("dependencies").unwrap().as_str().unwrap());
+    let deps = canonicalize(dependencies);
     println!("Dependency Directory: {:?}", deps);
-    let src = canonicalize(toml.get("sources").unwrap().as_str().unwrap());
+    let src = canonicalize(sources);
     println!("Sources Directory: {:?}", src);
 
     assert!(build.exists());
@@ -126,6 +134,7 @@ pub fn parse_toml(file: &Path) -> (BuildDirs, Vec<BuildShared>, Vec<BuildTarget>
             let interceptor = toml.get("interceptor").unwrap().as_str().unwrap();
 
             let entrypoint = toml.get("entrypoint").unwrap().as_str().unwrap();
+            let entrypoint = canonicalize(entrypoint);
 
             let compiler_args = toml
                 .get("compiler_args")
@@ -152,7 +161,7 @@ pub fn parse_toml(file: &Path) -> (BuildDirs, Vec<BuildShared>, Vec<BuildTarget>
                 compiler: compiler.to_string(),
                 linker: linker.to_string(),
                 interceptor: interceptor.to_string(),
-                entrypoint: Path::new(entrypoint).into(),
+                entrypoint: entrypoint,
                 name: name.to_string(),
                 compiler_args: compiler_args.clone(),
                 linker_args: linker_args.clone(),
@@ -180,10 +189,20 @@ pub fn compile(
     args: &Vec<String>,
 ) -> Box<Path> {
     let mut output = build.clone().into_path_buf();
-    let module = source.file_name().unwrap().to_str().unwrap();
+    println!(
+        "Compiling {}...",
+        source.file_name().unwrap().to_str().unwrap()
+    );
+    let module = source.to_str().unwrap().to_string().replace("/", ".") + ".o";
     output.push(module);
-    output.push(".o");
-    execute(compiler, args, false, true);
+    let mut _args = vec!["-c".to_string(), source.to_str().unwrap().to_string()];
+    _args.append(&mut args.clone());
+    _args.append(&mut vec![
+        "-o".to_string(),
+        output.to_str().unwrap().to_string(),
+    ]);
+
+    execute(compiler, &_args, false, true);
     return output.into_boxed_path();
 }
 
@@ -234,6 +253,7 @@ pub fn find_headers(path: &Path) -> Vec<Box<Path>> {
 /// ! - /User/test/game/src
 /// ! - /User/test/game/src/engine
 /// ! - /User/tes/game/src/engine/api
+/// ! We return a HashSet to remove duplicates
 pub fn generate_include_paths(root: &Path, headers: Vec<Box<Path>>) -> HashSet<Box<Path>> {
     let mut ret = HashSet::new();
 
@@ -246,4 +266,15 @@ pub fn generate_include_paths(root: &Path, headers: Vec<Box<Path>>) -> HashSet<B
     }
 
     ret
+}
+
+/// ! Given a list of library files genreate the -L argument for linking
+/// ! Keep in mind the library still must be specified per target with -lsdl3 in the Project.toml
+pub fn generate_library_args(libs: &Vec<Box<Path>>) -> Vec<String> {
+    let mut args = Vec::new();
+    for l in libs {
+        let arg = "-L".to_string() + l.parent().unwrap().to_str().unwrap();
+        args.push(arg);
+    }
+    args
 }

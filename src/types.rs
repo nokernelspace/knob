@@ -3,10 +3,10 @@ use serde::Serialize;
 use std::path::Path;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Commands(pub Vec<Command>);
+pub struct CompileCommands(pub Vec<CompileCommand>);
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Command {
+pub struct CompileCommand {
     pub directory: String,
     pub arguments: Vec<String>,
     pub file: String,
@@ -21,6 +21,12 @@ pub struct BuildShared {
     pub headers: Box<Path>,
     pub objs: Vec<Box<Path>>,
     pub libs: Vec<Box<Path>>,
+}
+
+impl BuildShared {
+    pub fn is_loose(&self) -> bool {
+        self.libs.len() == 0
+    }
 }
 
 #[derive(Debug)]

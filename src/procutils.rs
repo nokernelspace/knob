@@ -1,9 +1,11 @@
 use crate::types::*;
 use std::env::consts;
+use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
 use std::time::*;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// ! Change the working directory of the build process
 pub fn cd(relative: &str) {
@@ -123,6 +125,31 @@ pub fn cwd() -> Box<Path> {
     std::fs::canonicalize(&base_path).unwrap().into_boxed_path()
 }
 
+pub fn rm(path: &Path) {
+    if path.exists() {
+        if path.is_file() {
+            std::fs::remove_file(path).unwrap();
+        } else if path.is_dir() {
+            std::fs::remove_dir_all(path).unwrap();
+        }
+    }
+}
+pub fn mkdir(path: &Path) {
+    if !path.exists() {
+        std::fs::create_dir(path).unwrap();
+    }
+}
+
 pub fn canonicalize(rel_path: &str) -> Box<Path> {
     std::fs::canonicalize(rel_path).unwrap().into_boxed_path()
+}
+
+pub fn last_modified(path: &String) -> i32 {
+    let metadata = std::fs::metadata(path).unwrap();
+    let modified_time = metadata.modified().unwrap();
+    let duration = modified_time
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Modified time is before UNIX epoch"))
+        .unwrap();
+    duration.as_secs() as i32
 }

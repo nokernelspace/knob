@@ -7,7 +7,7 @@ use crate::types::*;
 use clap::{Parser, Subcommand};
 use std::path::Path;
 
-/// Simple program to greet a person
+/// ! knob shared -> knob build <TARGET>
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -17,7 +17,6 @@ struct Args {
     #[command(subcommand)]
     command: Option<Commands>,
 }
-///! Shared is actually a clone of BUILD but just the first part
 #[derive(Subcommand)]
 enum Commands {
     INIT,
@@ -70,43 +69,12 @@ fn main() {
                 }
                 let target = *targets.get(0).unwrap();
 
-                let mut loose_objs = Vec::new();
-                // Build Shared Dependencies
-                for dep in shared {
-                    let name = dep.root.file_name().unwrap().to_str().unwrap();
-                    println!("Building Shared {}", name);
-
-                    let prev = cwd();
-                    cd(&*dep.root.to_str().unwrap());
-                    execute("bash", &vec!["-c".to_string(), dep.build], false, false);
-                    cd(&*prev.to_str().unwrap());
-
-                    // Archive loose dependencies as libdependencies.a
-                    if dep.libs.len() == 0 {
-                        loose_objs.append(&mut dep.objs.clone());
-                    }
-                }
-
-                // Archive loose dependencies as libdependencies.a
-                if loose_objs.len() > 0 {
-                    println!("Archiving {} Loose Shared Objects...", loose_objs.len());
-                    let mut args = if std::env::consts::OS == "macos" {
-                        vec!["-r".to_string(), "libdependencies.a".to_string()]
-                    } else {
-                        vec!["r".to_string(), "libdependencies.a".to_string()]
-                    };
-                    args.append(
-                        &mut loose_objs
-                            .into_iter()
-                            .map(|x| (*x.to_str().unwrap()).to_string())
-                            .collect(),
-                    );
-                    execute(&"ar", &args, false, false).unwrap();
-                }
-
                 // Compile Project Source
+                println!("Searching {:?}", &dirs.sources);
                 let headers = find_headers(&dirs.sources);
+                println!("Found {} Shared Headers", headers.len());
                 let sources = find_sources(&dirs.sources);
+                println!("Found {} Shared Sources", headers.len());
                 let includes = generate_include_paths(&*cwd(), headers);
                 let includes_args: Vec<String> = includes
                     .iter()
@@ -121,47 +89,7 @@ fn main() {
             }
             Commands::SHARED => {
                 let (dirs, shared, targets) = parse_toml(&*toml);
-
-                let mut loose_objs = Vec::new();
-                // Build Shared Dependencies
-                for dep in shared {
-                    let name = dep.root.file_name().unwrap().to_str().unwrap();
-                    println!("Building Shared {}", name);
-
-                    let prev = cwd();
-                    cd(&*dep.root.to_str().unwrap());
-                    execute("bash", &vec!["-c".to_string(), dep.build], false, false);
-                    cd(&*prev.to_str().unwrap());
-
-                    // Archive loose dependencies as libdependencies.a
-                    if dep.libs.len() == 0 {
-                        loose_objs.append(&mut dep.objs.clone());
-                    }
-                }
-
-                // Archive loose dependencies as libdependencies.a
-                if loose_objs.len() > 0 {
-                    println!("Archiving {} Loose Shared Objects...", loose_objs.len());
-                    let mut args = if std::env::consts::OS == "macos" {
-                        vec!["-r".to_string(), "libdependencies.a".to_string()]
-                    } else {
-                        vec!["r".to_string(), "libdependencies.a".to_string()]
-                    };
-                    args.append(
-                        &mut loose_objs
-                            .into_iter()
-                            .map(|x| (*x.to_str().unwrap()).to_string())
-                            .collect(),
-                    );
-                    execute(&"ar", &args, false, false).unwrap();
-                }
-
-                // Compile Project Source
-                // Compile Target Entrypoint
-                // Link Entrypoint with
-                //  - Project Sources      : generate_linker_args("./build")
-                //  - libdependencies.a    : generate_library_args("libdependencies.a")
-                //  - Library Dependencies : Provided via Dependency.toml and cli args
+                build_shared(&shared);
             }
             Commands::OPTS => {}
             Commands::RELEASE => {}
@@ -170,5 +98,46 @@ fn main() {
         None => {
             panic!("Specify an action")
         }
+    }
+}
+
+fn build_shared(shared: &Vec<BuildShared>) {
+    let mut loose_objs = Vec::new();
+    // Build Shared Dependencies
+    for dep in shared {
+        let name = dep.root.file_name().unwrap().to_str().unwrap();
+        println!("Building Shared {}", name);
+
+        let prev = cwd();
+        cd(&*dep.root.to_str().unwrap());
+        execute(
+            "bash",
+            &vec!["-c".to_string(), dep.build.clone()],
+            false,
+            false,
+        );
+        cd(&*prev.to_str().unwrap());
+
+        // Archive loose dependencies as libdependencies.a
+        if dep.libs.len() == 0 {
+            loose_objs.append(&mut dep.objs.clone());
+        }
+    }
+
+    // Archive loose dependencies as libdependencies.a
+    if loose_objs.len() > 0 {
+        println!("Archiving {} Loose Shared Objects...", loose_objs.len());
+        let mut args = if std::env::consts::OS == "macos" {
+            vec!["-r".to_string(), "libdependencies.a".to_string()]
+        } else {
+            vec!["r".to_string(), "libdependencies.a".to_string()]
+        };
+        args.append(
+            &mut loose_objs
+                .into_iter()
+                .map(|x| (*x.to_str().unwrap()).to_string())
+                .collect(),
+        );
+        execute(&"ar", &args, false, false).unwrap();
     }
 }

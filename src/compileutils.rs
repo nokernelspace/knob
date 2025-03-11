@@ -195,12 +195,13 @@ pub fn find_sources(path: &Path) -> Vec<Box<Path>> {
         let path = entry.unwrap();
         let path = path.path();
 
-        if path.ends_with(".c")
-            || path.ends_with(".cpp")
-            || path.ends_with(".c++")
-            || path.ends_with(".mm")
-        {
-            sources.push(path.to_owned().into_boxed_path());
+        match path.extension() {
+            Some(x) => {
+                if x == ("c") || x == ("cpp") || x == ("c++") || x == "mm" {
+                    sources.push(path.to_owned().into_boxed_path());
+                }
+            }
+            _ => {}
         }
     }
 
@@ -214,8 +215,13 @@ pub fn find_headers(path: &Path) -> Vec<Box<Path>> {
         let path = entry.unwrap();
         let path = path.path();
 
-        if path.ends_with(".h") || path.ends_with(".hpp") || path.ends_with(".h++") {
-            sources.push(path.to_owned().into_boxed_path());
+        match path.extension() {
+            Some(x) => {
+                if x == ("h") || x == ("hpp") || x == ("h++") {
+                    sources.push(path.to_owned().into_boxed_path());
+                }
+            }
+            _ => {}
         }
     }
 

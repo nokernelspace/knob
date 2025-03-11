@@ -147,6 +147,13 @@ fn main() {
                             execute(&bin, &args, false, true);
                         }
                     }
+                    let bin = compile(
+                        &target.compiler,
+                        &target.entrypoint,
+                        &dirs.output,
+                        &target.compiler_args,
+                    );
+                    objs.push(bin);
 
                     link_binary(&root.clone().into_boxed_path(), &shared, target, &objs);
                 }

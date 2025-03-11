@@ -1,0 +1,33 @@
+sources = "./src"
+dependencies = "./deps"
+output = "./build"
+
+[Target.game.osx]
+compiler = "gcc"
+archiver = "ar"
+interceptor = "bear"
+compiler_args = []
+linker = "ld"
+linker_args=[
+    "-L/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib",
+    "-lc++",
+    "-lSystem"
+]
+entrypoint = "/bins/metal.mm"
+
+[Target.game.win32]
+entrypoint = "/bins/dxd.cpp"
+
+[Targetgame.linux]
+entrypoint = "/bins/gl.cpp"
+compiler = "gcc"
+archiver = "ar"
+linker = "gcc"
+interceptor = "bear"
+
+compiler_args = [
+    "-std=c++20"
+]
+linker_args=[
+    "-lstdc++"
+]

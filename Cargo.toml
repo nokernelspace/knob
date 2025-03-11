@@ -1,0 +1,17 @@
+[package]
+name = "knob"
+version = "0.1.0"
+description = "Yet Another C/C++ Build System"
+license = "GPL-3.0-or-later"
+edition = "2021"
+
+[dependencies]
+toml = "0.8.19"
+colored = "2.0"
+notify = "8.0.0"
+map-macro = "0.3.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+walkdir = "2"
+clap = { version = "4.5.31", features = ["derive"] }
+

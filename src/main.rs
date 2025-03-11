@@ -20,7 +20,7 @@ struct Args {
     #[command(subcommand)]
     command: Option<Commands>,
 }
-
+///! Shared is actually a clone of BUILD but just the first part
 #[derive(Subcommand)]
 enum Commands {
     INIT,
@@ -30,7 +30,7 @@ enum Commands {
     RELEASE,
     INC,
     CHECK,
-    SHARED, ///! Shared is actually a clone of BUILD but just the first part
+    SHARED,
 }
 
 fn main() {

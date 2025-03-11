@@ -144,12 +144,12 @@ pub fn canonicalize(rel_path: &str) -> Box<Path> {
     std::fs::canonicalize(rel_path).unwrap().into_boxed_path()
 }
 
-pub fn last_modified(path: &String) -> i32 {
+pub fn last_modified(path: &String) -> u64 {
     let metadata = std::fs::metadata(path).unwrap();
     let modified_time = metadata.modified().unwrap();
     let duration = modified_time
         .duration_since(UNIX_EPOCH)
         .map_err(|_| io::Error::new(io::ErrorKind::Other, "Modified time is before UNIX epoch"))
         .unwrap();
-    duration.as_secs() as i32
+    duration.as_secs()
 }

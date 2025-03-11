@@ -39,9 +39,6 @@ fn main() {
     let mut compile_commands = root.clone();
     compile_commands.push("compile_commands.json");
 
-    let mut db = root.clone();
-    db.push("sources.db");
-
     let toml = toml.into_boxed_path();
     println!("Config File: {:?}", toml);
 
@@ -141,8 +138,14 @@ fn main() {
                     for command in compile_commands.0.clone() {
                         let bin = command.arguments[0].clone();
                         let args = command.arguments[1..].to_vec();
-                        execute(&bin, &args, false, true);
-                        objs.push(PathBuf::from(&command.output).into_boxed_path());
+                        let src = PathBuf::from(&command.file).into_boxed_path();
+                        let obj = PathBuf::from(&command.output).into_boxed_path();
+                        objs.push(obj);
+
+                        if last_modified(&command.output) < last_modified(&command.file) {
+                            println!("Rebuilding {}", command.output);
+                            execute(&bin, &args, false, true);
+                        }
                     }
 
                     link_binary(&root.clone().into_boxed_path(), &shared, target, &objs);

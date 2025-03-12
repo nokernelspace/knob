@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde::Serialize;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CompileCommands(pub Vec<CompileCommand>);
@@ -13,14 +13,14 @@ pub struct CompileCommand {
     pub output: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BuildShared {
-    pub root: Box<Path>,
+    pub root: PathBuf,
     pub clean: String,
     pub build: String,
-    pub headers: Box<Path>,
-    pub objs: Vec<Box<Path>>,
-    pub libs: Vec<Box<Path>>,
+    pub headers: PathBuf,
+    pub objs: Vec<PathBuf>,
+    pub libs: Vec<PathBuf>,
 }
 
 impl BuildShared {
@@ -28,19 +28,23 @@ impl BuildShared {
         self.libs.len() == 0
     }
 }
-
-#[derive(Debug)]
-pub struct BuildDirs {
-    pub dependencies: Box<Path>,
-    pub sources: Box<Path>,
-    pub output: Box<Path>,
-}
-#[derive(Debug)]
-pub struct BuildTarget {
+#[derive(Debug, Clone)]
+pub struct BuildPlatform {
     pub compiler: String,
     pub linker: String,
-    pub interceptor: String,
-    pub entrypoint: Box<Path>,
+    pub compiler_args: Vec<String>,
+    pub linker_args: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildDirs {
+    pub dependencies: PathBuf,
+    pub sources: PathBuf,
+    pub output: PathBuf,
+}
+#[derive(Debug, Clone)]
+pub struct BuildTarget {
+    pub entrypoint: PathBuf,
     pub name: String,
     pub compiler_args: Vec<String>,
     pub linker_args: Vec<String>,

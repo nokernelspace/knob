@@ -1,6 +1,7 @@
 use crate::types::*;
 use std::env::consts;
 use std::io;
+use std::io::Result;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::process::Stdio;
@@ -8,7 +9,7 @@ use std::time::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// ! Change the working directory of the build process
-pub fn cd(relative: &str) {
+pub fn cd(relative: &PathBuf) {
     let base_path = std::env::current_dir().unwrap();
     let base_path = base_path.join(relative);
 
@@ -120,12 +121,12 @@ pub fn since(timestamp1: u64, timestamp2: u64) -> u64 {
     difference.as_secs()
 }
 
-pub fn cwd() -> Box<Path> {
+pub fn cwd() -> PathBuf {
     let base_path = std::env::current_dir().unwrap();
-    std::fs::canonicalize(&base_path).unwrap().into_boxed_path()
+    std::fs::canonicalize(&base_path).unwrap()
 }
 
-pub fn rm(path: &Path) {
+pub fn rm(path: &PathBuf) {
     if path.exists() {
         if path.is_file() {
             std::fs::remove_file(path).unwrap();
@@ -134,22 +135,21 @@ pub fn rm(path: &Path) {
         }
     }
 }
-pub fn mkdir(path: &Path) {
+pub fn mkdir(path: &PathBuf) {
     if !path.exists() {
         std::fs::create_dir(path).unwrap();
     }
 }
 
-pub fn canonicalize(rel_path: &str) -> Box<Path> {
-    std::fs::canonicalize(rel_path).unwrap().into_boxed_path()
+pub fn canonicalize(rel_path: &str) -> PathBuf {
+    std::fs::canonicalize(rel_path).unwrap()
 }
 
-pub fn last_modified(path: &String) -> u64 {
-    let metadata = std::fs::metadata(path).unwrap();
-    let modified_time = metadata.modified().unwrap();
+pub fn last_modified(path: &String) -> Result<u64> {
+    let metadata = std::fs::metadata(path)?;
+    let modified_time = metadata.modified()?;
     let duration = modified_time
         .duration_since(UNIX_EPOCH)
-        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Modified time is before UNIX epoch"))
-        .unwrap();
-    duration.as_secs()
+        .map_err(|_| io::Error::new(io::ErrorKind::Other, "Modified time is before UNIX epoch"))?;
+    Ok(duration.as_secs())
 }

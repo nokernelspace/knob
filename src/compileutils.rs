@@ -218,7 +218,7 @@ pub fn compile(compiler: &str, source: &PathBuf, build: &PathBuf, args: &Vec<Str
         output.to_str().unwrap().to_string(),
     ]);
 
-    execute(compiler, &_args, false, true);
+    execute(compiler, &_args, false, true).unwrap();
     return output;
 }
 

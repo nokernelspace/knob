@@ -67,7 +67,8 @@ fn main() {
                         &vec!["-c".to_string(), dep.clean.clone()],
                         false,
                         false,
-                    );
+                    )
+                    .unwrap();
                     cd(&prev.clone());
                 }
 
@@ -148,7 +149,7 @@ fn main() {
 
                         if o.is_err() || c.is_err() || o.unwrap() < c.unwrap() {
                             println!("Rebuilding {}", command.output);
-                            execute(&bin, &args, false, true);
+                            execute(&bin, &args, false, true).unwrap();
                         }
                     }
 

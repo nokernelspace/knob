@@ -18,7 +18,8 @@ pub fn build_shared(shared: &Vec<BuildShared>) {
             &vec!["-c".to_string(), dep.build.clone()],
             false,
             true,
-        );
+        )
+        .unwrap();
         cd(&prev.clone());
 
         // Archive loose dependencies as libdependencies.a
@@ -123,7 +124,7 @@ pub fn link_binary(
     // Compiled project objects
     args.append(&mut objs);
 
-    execute(&platform.linker, &args, false, false);
+    execute(&platform.linker, &args, false, true).unwrap();
 
     // Exit the project directory
     cd(&prev.clone());

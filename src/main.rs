@@ -24,9 +24,9 @@ enum Commands {
     INIT,
     CLEAN,
     PROJECT,
-    BUILD { query: String },
+    BUILD,
     RELEASE,
-    INC { query: String },
+    INC,
     CHECK,
     SHARED,
 }
@@ -54,7 +54,7 @@ fn main() {
                 todo!()
             }
             Commands::CLEAN => {
-                let (dirs, _, shared, targets) = parse_toml(&*toml);
+                let (dirs, _, shared, target) = parse_toml(&*toml);
                 for dep in shared {
                     println!(
                         "Cleaning {}",
@@ -82,33 +82,23 @@ fn main() {
                 println!("Removing compile_commands.json");
                 rm(&compile_commands);
 
-                for target in targets {
-                    println!("Removing {}", target.name);
-                    let mut bin = root.clone();
-                    bin.push(&target.name);
-                    rm(&bin);
-                }
+                println!("Removing {}", target.name);
+                let mut bin = root.clone();
+                bin.push(&target.name);
+                rm(&bin);
             }
             Commands::SHARED => {
-                let (dirs, platform, shared, targets) = parse_toml(&*toml);
+                let (dirs, platform, shared, target) = parse_toml(&*toml);
                 println!("Building Shared Dependencies...");
-                build_shared(&shared);
+                build_shared(&shared, &target.dependencies);
             }
             Commands::PROJECT => {
-                let (dirs, platform, shared, targets) = parse_toml(&*toml);
+                let (dirs, platform, shared, target) = parse_toml(&*toml);
 
                 compile_project(&root, &platform, &shared, &dirs);
             }
-            Commands::INC { query } => {
-                let (dirs, platform, shared, targets) = parse_toml(&*toml);
-                let targets = targets.iter().fold(Vec::new(), |mut a, x| {
-                    if query == "all" {
-                        a.push(x);
-                    } else if x.name.contains(&query) {
-                        a.push(x)
-                    }
-                    a
-                });
+            Commands::INC => {
+                let (dirs, platform, shared, target) = parse_toml(&*toml);
                 let compile_commands =
                     std::fs::read_to_string(&*compile_commands.into_boxed_path()).unwrap();
                 let compile_commands: CompileCommands =
@@ -132,72 +122,56 @@ fn main() {
                     a
                 });
 
-                for target in targets {
-                    let mut compiler_args = platform.compiler_args.clone();
-                    compiler_args.append(&mut includes_args.clone());
-                    compiler_args.append(&mut isys_args.clone());
-                    let mut objs = Vec::new();
-                    for command in compile_commands.0.clone() {
-                        let bin = command.arguments[0].clone();
-                        let args = command.arguments[1..].to_vec();
-                        let src = PathBuf::from(&command.file);
-                        let obj = PathBuf::from(&command.output);
-                        objs.push(obj);
+                let mut compiler_args = platform.compiler_args.clone();
+                compiler_args.append(&mut target.compiler_args.clone());
+                compiler_args.append(&mut includes_args.clone());
+                compiler_args.append(&mut isys_args.clone());
+                let mut objs = Vec::new();
+                for command in compile_commands.0.clone() {
+                    let bin = command.arguments[0].clone();
+                    let args = command.arguments[1..].to_vec();
+                    let src = PathBuf::from(&command.file);
+                    let obj = PathBuf::from(&command.output);
+                    objs.push(obj);
 
-                        let o = last_modified(&command.output);
-                        let c = last_modified(&command.file);
+                    let o = last_modified(&command.output);
+                    let c = last_modified(&command.file);
 
-                        if o.is_err() || c.is_err() || o.unwrap() < c.unwrap() {
-                            println!("Rebuilding {}", command.output);
-                            execute(&bin, &args, false, true).unwrap();
-                        }
+                    if o.is_err() || c.is_err() || o.unwrap() < c.unwrap() {
+                        println!("Rebuilding {}", command.output);
+                        execute(&bin, &args, false, true).unwrap();
                     }
-
-                    let bin = compile(
-                        &platform.compiler,
-                        &target.entrypoint,
-                        &dirs.output,
-                        &compiler_args,
-                    );
-                    objs.push(bin.clone());
-
-                    link_binary(&root.clone(), &platform, &shared, target, &objs);
                 }
-            }
-            Commands::BUILD { query } => {
-                let (dirs, platform, shared, targets) = parse_toml(&*toml);
 
-                let targets = targets.iter().fold(Vec::new(), |mut a, x| {
-                    if query == "all" {
-                        a.push(x);
-                    } else if x.name.contains(&query) {
-                        a.push(x)
-                    }
-                    a
-                });
+                let bin = compile(
+                    &platform.compiler,
+                    &target.entrypoint,
+                    &dirs.output,
+                    &compiler_args,
+                );
+                objs.push(bin.clone());
+
+                link_binary(&root.clone(), &platform, &shared, &target, &objs);
+            }
+            Commands::BUILD => {
+                let (dirs, platform, shared, target) = parse_toml(&*toml);
 
                 println!("Building Shared Depenencies...");
-                build_shared(&shared);
+                build_shared(&shared, &target.dependencies);
 
-                for target in targets {
-                    println!("Compiling Project...");
-                    let mut objs = compile_project(&root, &platform, &shared, &dirs);
+                println!("Compiling Project...");
+                let mut objs = compile_project(&root, &platform, &shared, &dirs);
 
-                    // Compile the entrypoint
-                    let mut args = generate_include_args(
-                        &root,
-                        &dirs,
-                        &shared,
-                        &platform.compiler_args.clone(),
-                    );
+                // Compile the entrypoint
+                let mut args =
+                    generate_include_args(&root, &dirs, &shared, &platform.compiler_args.clone());
 
-                    println!("Compiling {}...", target.name);
-                    let entrypoint =
-                        compile(&platform.compiler, &target.entrypoint, &dirs.output, &args);
-                    objs.push(entrypoint);
-                    println!("Linking Binary...");
-                    link_binary(&root, &platform, &shared, target, &objs);
-                }
+                println!("Compiling {}...", target.name);
+                let entrypoint =
+                    compile(&platform.compiler, &target.entrypoint, &dirs.output, &args);
+                objs.push(entrypoint);
+                println!("Linking Binary...");
+                link_binary(&root, &platform, &shared, &target, &objs);
             }
             Commands::RELEASE => {}
         },

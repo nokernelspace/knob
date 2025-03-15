@@ -27,6 +27,9 @@ impl BuildShared {
     pub fn is_loose(&self) -> bool {
         self.libs.len() == 0
     }
+    pub fn name(&self) -> &str {
+        self.root.file_name().unwrap().to_str().unwrap()
+    }
 }
 #[derive(Debug, Clone)]
 pub struct BuildPlatform {
@@ -45,6 +48,7 @@ pub struct BuildDirs {
 #[derive(Debug, Clone)]
 pub struct BuildTarget {
     pub entrypoint: PathBuf,
+    pub dependencies: Vec<String>,
     pub name: String,
     pub compiler_args: Vec<String>,
     pub linker_args: Vec<String>,

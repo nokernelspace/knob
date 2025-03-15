@@ -78,7 +78,7 @@ pub fn parse_dependencies(file: &Path) -> Vec<BuildShared> {
 
     ret
 }
-pub fn parse_toml(file: &Path) -> (BuildDirs, BuildPlatform, Vec<BuildShared>, Vec<BuildTarget>) {
+pub fn parse_toml(file: &Path) -> (BuildDirs, BuildPlatform, Vec<BuildShared>, BuildTarget) {
     let prev = cwd();
     let parent = file.parent().unwrap();
     cd(&parent.to_path_buf());
@@ -180,14 +180,28 @@ pub fn parse_toml(file: &Path) -> (BuildDirs, BuildPlatform, Vec<BuildShared>, V
                 .map(|x| x.as_str().unwrap().to_string())
                 .collect::<Vec<String>>();
 
+            let dependencies = toml
+                .get("deps")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .into_iter()
+                .map(|x| x.as_str().unwrap().to_string())
+                .collect();
+
             BuildTarget {
                 entrypoint,
+                dependencies,
                 name: name.to_string(),
                 compiler_args: compiler_args.clone(),
                 linker_args: linker_args.clone(),
             }
         })
         .collect();
+
+    if targets.len() > 1 {
+        panic!("Only 1 Build Target is Supported at a Time");
+    }
 
     cd(&prev.clone());
     (
@@ -198,7 +212,7 @@ pub fn parse_toml(file: &Path) -> (BuildDirs, BuildPlatform, Vec<BuildShared>, V
         },
         platform,
         dependencies,
-        targets,
+        targets[0].clone(),
     )
 }
 
@@ -218,7 +232,7 @@ pub fn compile(compiler: &str, source: &PathBuf, build: &PathBuf, args: &Vec<Str
         output.to_str().unwrap().to_string(),
     ]);
 
-    execute(compiler, &_args, false, true).unwrap();
+    execute(compiler, &_args, true, true).unwrap();
     return output;
 }
 

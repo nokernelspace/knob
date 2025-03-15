@@ -5,29 +5,30 @@ use std::path::{Path, PathBuf};
 
 /// ! Step 1 : Build the libraries and loose objects in `./.deps/`
 /// ! Depends on Bash
-pub fn build_shared(shared: &Vec<BuildShared>) {
+pub fn build_shared(shared: &Vec<BuildShared>, filters: &Vec<String>) {
     let mut loose_objs = Vec::new();
     // Build Shared Dependencies
     for dep in shared {
         let name = dep.root.file_name().unwrap().to_str().unwrap();
+        if filters.contains(&name.to_string()) {
+            let prev = cwd();
+            cd(&dep.root.clone());
+            execute(
+                "bash",
+                &vec!["-c".to_string(), dep.build.clone()],
+                false,
+                true,
+            )
+            .unwrap();
+            cd(&prev.clone());
 
-        let prev = cwd();
-        cd(&dep.root.clone());
-        execute(
-            "bash",
-            &vec!["-c".to_string(), dep.build.clone()],
-            false,
-            true,
-        )
-        .unwrap();
-        cd(&prev.clone());
-
-        // Archive loose dependencies as libdependencies.a
-        if dep.is_loose() {
-            println!("Built Loose Shared {}", name);
-            loose_objs.append(&mut dep.objs.clone());
-        } else {
-            println!("Built Shared {}", name);
+            // Archive loose dependencies as libdependencies.a
+            if dep.is_loose() {
+                println!("Built Loose Shared {}", name);
+                loose_objs.append(&mut dep.objs.clone());
+            } else {
+                println!("Built Shared {}", name);
+            }
         }
     }
 
@@ -124,7 +125,7 @@ pub fn link_binary(
     // Compiled project objects
     args.append(&mut objs);
 
-    execute(&platform.linker, &args, false, true).unwrap();
+    execute(&platform.linker, &args, true, true).unwrap();
 
     // Exit the project directory
     cd(&prev.clone());
